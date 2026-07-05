@@ -1,4 +1,4 @@
-import { genTerrain } from "./terrain/utils.js";
+import { genTerrain , genHeights } from "./terrain/utils.js";
 import { Tile } from "./Tile.js";
 
 const canvas = document.getElementById("canvas");
@@ -9,7 +9,7 @@ let mousey = 0;
 let hover = 0;
 
 const tile_width = 50;
-const tile_gap = 5;
+const tile_gap = 0;
 const full_tile = tile_width + tile_gap;
 
 document.addEventListener("keydown", keyDownHandler);
@@ -29,12 +29,17 @@ document.addEventListener("mousemove", (e) => {
 });
 document.addEventListener("mousedown", () => {
     if(hover >= 0) {genTerrain(hover, world, world_width, world_height);}
-})
+});
 
-const world_width = 10;
-const world_height = 10;
-let world = new Uint8Array(world_width * world_height);
-for(let i = 0; i < world_width*world_height; i++) {world[i] = 0}
+const world_width = 8;
+const world_height = 8;
+
+//Initialize chunk
+let world = {
+    h1: new Uint8Array(world_width * world_height)
+}
+genHeights(world, world_width, world_height);
+console.log(world);
 
 //last time
 let lt = window.performance.now();
@@ -63,13 +68,11 @@ function renderTerrain() {
     ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
     for(let i = 0; i < world_width*world_height; i++) {
         
-        let v = world[i];
+        let v = world.h1[i] *1.5;
         let p = getPos(i);
         let x = p[0]*full_tile;
         let y = p[1]*full_tile;
-        if(v === 0) {
-            ctx.fillStyle = "rgb(240, 240, 240)";
-        } else if(v === 1) {ctx.fillStyle = "green"}
+        ctx.fillStyle = `rgb(${v},${v},${v})`;
         if(hover == i) {ctx.fillStyle = "rgba(146, 36, 36, 0.5)"}
         ctx.fillRect(x, y, tile_width, tile_width);
     }
