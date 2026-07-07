@@ -30,21 +30,20 @@ function genTerrain(start, chunk, chunk_width, chunk_height) {
 }
 
 //Returns the value at the tile, not the index in order for cross chunk neighbors
-function getNeighbor(start, dx, dy, chunk, chunkn1, chunkn2, chunk_width, chunk_height) {
-    let ochunk = 0;     // Origin Chunk, 0 meaning the regular chunk, 1 is chunkn1, 2 is chunkn2
+function getNeighbor(start, dx, dy, index, world, world_width, world_height, chunk_width, chunk_height) {
     const p = getPos(start, chunk_width);  
-    const pn = {x: p.x+dx, y: p.y+dy};          //Position of the neighbor
-    if(pn.x < 0 && chunkn1) {
-        pn.x = chunk_width-1;
-        ochunk = 1;
-    } else if (pn.x < 0) {return false}
-    if(pn.y < 0 && chunkn2) {
-        pn.y = chunk_height-1;
-        ochunk = 2;
-    } else if (pn.y < 0) {return false}  //If on a border, return false
-    let index = getIndex(pn, chunk_width, chunk_height);
-    
-    return {i: index, o: ochunk};
+    const pn = {x: p.x+dx, y: p.y+dy}; //Position of the neighbor  
+    const c = getPos(index, world_width) //Position of this chunk
+    let nx = 0;
+    let ny = 0;
+    //{5, 1}, 1, 0, 9
+    if(pn.x < 0 && c.x > 0) {pn.x = chunk_width-1; nx = -1} else if(pn.x < 0) {return false}
+    if(pn.y < 0 && c.y > 0) {pn.y = chunk_height-1; ny = -1} else if(pn.y < 0) {return false}
+    if(pn.x >= chunk_width && c.x < world_width-1) {pn.x = 0; nx = 1} else if(pn.x >= chunk_width) {return false}
+    if(pn.y >= chunk_height && c.y < world_height-1) {pn.y = 0; ny = 1} else if(pn.y >= chunk_height) {return false}
+    let chunk = getChunk(c, nx, ny, world, world_width, world_height);
+    let index2 = getIndex(pn, chunk_width, chunk_height);
+    return chunk.h1[index2];
 }
 
 function getPos(index, chunk_width) {
@@ -65,31 +64,26 @@ function getDist(a, b, chunk_width) {
     return Math.hypot(dx, dy);
 }
 
-function genHeights(chunk, chunkn1, chunkn2, chunk_width, chunk_height) {
-    let start = 100 + Math.floor(Math.random() * 10);
+function genHeights(chunk, index, world, world_width, world_height, chunk_width, chunk_height) {
+    let start = Math.floor(Math.random() * 200);
     for(let i = 0; i < chunk_width * chunk_height; i++) {
-        const p1 = getNeighbor(i, -1, 0, chunk, chunkn1, chunkn2, chunk_width, chunk_height); //Neighbor to the left
-        const p2 = getNeighbor(i, 0, -1, chunk, chunkn1, chunkn2, chunk_width, chunk_height);  //Neighbor to the top
-        let v1 = 0;
-        let v2 = 0;
-        switch(p1.o) {
-            case 0: v1 = chunk.h1[p1.i]; break;
-            case 1: v1 = chunkn1.h1[p1.i]; break;
-            case 2: v1 = chunkn2.h1[p1.i]; break;
-        }
-        switch(p2.o) {
-            case 0: v2 = chunk.h1[p2.i]; break;
-            case 1: v2 = chunkn1.h1[p2.i]; break;
-            case 2: v2 = chunkn2.h1[p2.i]; break;
-        }
-        // if(p1== false || p2 == false) {console.log(p1, p2)}
-        let parent = (p1!== false && p2!== false ? (v1+v2)/2 : (p1==false&&p2!==false? v2 : (p2==false&&p1!==false ? v1 : start)));
+        const p1 = getNeighbor(i, -1, 0, index, world, world_width, world_height, chunk_width, chunk_height); //Neighbor to the left
+        const p2 = getNeighbor(i, 0, -1, index, world, world_width, world_height, chunk_width, chunk_height);  //Neighbor to the top
+        let parent = (p1!== false && p2!== false ? (p1+p2)/2 : (p1==false&&p2!==false? p2 : (p2==false&&p1!==false ? p1 : start)));
         let dif = 40;
         let r = parent - (Math.random() * dif) + (dif/2);
         if(r <= 0) {r = 1}
         if(r >= 200) {r = 200;}
         chunk.h1[i] = r;
     }
+}
+
+function getChunk(start, dx, dy, world, world_width, world_height) {
+    let p = start;
+    let pn = {x: p.x + dx,y: p.y + dy};
+    if(pn.x < 0 || pn.y < 0 || pn.x >= world_width || pn.y >= world_height) {return 3}
+   
+    return world[getIndex(pn, world_width, world_height)];
 }
 
 export { genTerrain , genHeights , getNeighbor };
