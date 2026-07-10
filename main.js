@@ -1,16 +1,30 @@
-import { genTerrain , genHeights , genCorners, getNeighbor , convertTilePos , updateTile , getGlobalPos , getGlobalIndex } from "./terrain/utils.js";
+import { 
+    genTerrain , 
+    genHeights , 
+    genCorners, 
+    getNeighbor , 
+    convertTilePos , 
+    updateTile , 
+    getGlobalPos , 
+    getGlobalIndex ,
+    getData ,
+    getIndex ,
+    getPos
+} from "./terrain/utils.js";
 import { Tile } from "./Tile.js";
 
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-let mousex = 0;
-let mousey = 0;
+let mouse = {
+    x: 0,
+    y: 0
+}
 let hover = {
-        x: 20,
-        y: 20,
-        z: 100
-    };
+    x: 20,
+    y: 20,
+    z: 100
+};
 
 let panx = 0;
 let pany = 0;
@@ -25,29 +39,18 @@ let zoom = 1;
 
 const tile_width = 30*zoom;
 const tile_height = 15*zoom;
-const tile_gap = 0;
-const full_tile = tile_width + tile_gap;
 
 document.addEventListener("keydown", keyDownHandler);
 document.addEventListener("keyup", keyUpHandler);
 document.addEventListener("keypress", keyPressHandler);
 document.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
-    mousex = e.clientX - rect.left;
-    mousey = e.clientY - rect.top;
-
-    let nx = (mousex - panx*2 - canvas.clientWidth/2)/tile_width;
-    let ny = (mousey - pany*2 -50)/tile_height;
-    hover.x = nx + ny;
-    hover.y = ny - nx;
-    let gIndex = getGlobalIndex({x:Math.floor(hover.x), y: Math.floor(hover.y)}, world_width, world_height, chunk_width, chunk_height);
-    //console.log(gIndex);
-    if(gIndex !== undefined){hover.z = world[gIndex.c].h1[gIndex.i]};
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
 });
 document.addEventListener("mousedown", () => {
-    let gIndex = getGlobalIndex({x:Math.floor(hover.x), y:Math.floor(hover.y)}, world_width, world_height, chunk_width, chunk_height);
-    console.log(gIndex);
-    updateTile(hover.z + 2, gIndex.i, world[gIndex.c], world, world_width, world_height, chunk_width, chunk_height);
+    let gIndex = getGlobalIndex({x:Math.floor(hover.x), y:Math.floor(hover.y)}, world);
+    updateTile(hover.z + 30, gIndex.i, world.chunks[gIndex.c], world);
 });
 
 const chunk_width = 8;
@@ -57,7 +60,13 @@ const world_width = 4;
 const world_height = 4;
 
 //Initialize chunk
-let world = [];
+let world = {
+    chunks: [],
+    width: world_width,
+    height: world_height,
+    chunk_width: chunk_width,
+    chunk_height: chunk_height
+};
 for(let i = 0; i < world_width*world_height; i++) {
     let chunk = {
         x: i % world_width,
@@ -69,10 +78,10 @@ for(let i = 0; i < world_width*world_height; i++) {
         v3: new Uint8Array(chunk_width * chunk_height),
         v4: new Uint8Array(chunk_width * chunk_height)
     }
-    world.push(chunk);
-    genHeights(chunk, i, world, world_width, world_height, chunk_width, chunk_height);
+    world.chunks.push(chunk);
+    genHeights(i, chunk, world);
 }
-world = genCorners(world, world_width, world_height, chunk_width, chunk_height);
+genCorners(world);
 
 //last time
 let lt = window.performance.now();
@@ -92,6 +101,17 @@ function draw(dt) {
 }
 
 function update() {
+    let nx = (mouse.x - panx*2 - canvas.clientWidth/2)/tile_width;
+    let ny = (mouse.y - pany*2 +20)/tile_height;
+    hover.x = nx + ny;
+    hover.y = ny - nx;
+    if(hover.x < 0) {hover.x = 0}
+    if(hover.y < 0) {hover.y = 0}
+    if(hover.x > (world.width)*world.chunk_width-1) {hover.x = (world.width)*world.chunk_width-1}
+    if(hover.y > (world.height)*world.chunk_height-1) {hover.y = (world.height)*world.chunk_height-1}
+    const gIndex = getGlobalIndex({x:Math.floor(hover.x),y:Math.floor(hover.y)}, world);
+    if(gIndex !== undefined){hover.z = world.chunks[gIndex.c].h1[gIndex.i]};
+
     if(panleft) {panx -= 2}
     if(panright) {panx += 2}
     if(panup) {pany -= 1}
@@ -114,40 +134,49 @@ function update() {
             
     //     }
     // }
+    // world = genCorners(world, world_width, world_height, chunk_width, chunk_height);
 }
 
-function getPos(i, chunk_width, chunk_height) {
-    return {x: i % chunk_width, y: (i - i % chunk_width)/chunk_height};
-}
-
-function getIndex(p, chunk_width) {
-    return p.x + p.y * chunk_width;
-}
 function renderTerrain() {
     ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-    for(let c = 0; c < world.length; c++) {
-        let o = convertTilePos({x: world[c].x, y: world[c].y}, panx, pany, canvas, chunk_width*tile_width, chunk_width*tile_height, {x: 0, y: 0});
-        for(let i = 0; i < chunk_width*chunk_height; i++) {
-            let gPos = getGlobalPos(c, i, world_width, chunk_width, chunk_height);
-            let v = world[c].h1[i] *1;
-            let p = getPos(i, chunk_width, chunk_height);
-            let t = convertTilePos(p, panx, pany, canvas, tile_width, tile_height, o, v);
-            let v2 = world[c].v2[i];
-            let v3 = world[c].v3[i];
-            let v4 = world[c].v4[i];
-            let v0 = world[c].v0[i];
-            let t2 = convertTilePos({x:p.x+1,y:p.y}, panx, pany, canvas, tile_width, tile_height, o, v2);
-            let t3 = convertTilePos({x:p.x+1,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, o, v3);
-            let t4 = convertTilePos({x:p.x,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, o, v4);
-            let t0 = convertTilePos({x:p.x+0.5,y:p.y+0.5}, panx, pany, canvas, tile_width, tile_height, o, v0);
-            let g2 = convertTilePos({x:p.x+1,y:p.y}, panx, pany, canvas, tile_width, tile_height, o, 0);
-            let g3 = convertTilePos({x:p.x+1,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, o, 0);
-            let g4 = convertTilePos({x:p.x,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, o, 0);
-            let tiles = [t0,t,t2,t3,t4,g2,g3,g4];
-            let vals = [v0,v,v2,v3,v4,0,0,0];
+    for(let c = 0; c < world.chunks.length; c++) {
+        let origin = convertTilePos({x: world.chunks[c].x, y: world.chunks[c].y}, panx, pany, canvas, world.chunk_width*tile_width, world.chunk_width*tile_height, {x: 0, y: 0});
+        for(let i = 0; i < world.chunk_width*world.chunk_height; i++) {
+            const gPos = getGlobalPos(c, i, world);
+            const p = getPos(i, world.chunk_width, world.chunk_height);
+            
+            const data = getData(i, c, world);
+            const t = convertTilePos(p, panx, pany, canvas, tile_width, tile_height, origin, data.h1);
+            const t2 = convertTilePos({x:p.x+1,y:p.y}, panx, pany, canvas, tile_width, tile_height, origin, data.v2);
+            const t3 = convertTilePos({x:p.x+1,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, origin, data.v3);
+            const t4 = convertTilePos({x:p.x,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, origin, data.v4);
+            const t0 = convertTilePos({x:p.x+0.5,y:p.y+0.5}, panx, pany, canvas, tile_width, tile_height, origin, data.v0);
+            
+            let tiles = [t0,t,t2,t3,t4,0,0,0];
+            let vals = [data.v0,data.h1,data.v2,data.v3,data.v4,0,0,0,250,250,250,250];
             let faces = [[1,0,2],[2,0,3],[3,0,4],[4,0,1]];
-            if(world[c].x*chunk_width + p.x >= world_width*chunk_width-1) {faces.push([2,5,6,3])}
-            if(world[c].y*chunk_height + p.y >= world_height*chunk_height-1) {faces.push([3,6,7,4])}
+            const onEdge1 = world.chunks[c].x*world.chunk_width + p.x >= world.width*world.chunk_width-1;
+            const onEdge2 = world.chunks[c].y*world.chunk_height + p.y >= world.height*world.chunk_height-1;
+            if(onEdge1 || onEdge2) {
+                tiles[6] = convertTilePos({x:p.x+1,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, origin, 0);
+            }
+            if(onEdge1) {
+                tiles[5] = convertTilePos({x:p.x+1,y:p.y}, panx, pany, canvas, tile_width, tile_height, origin, 0);
+                faces.push([2,5,6,3]);
+            }
+            if(onEdge2) {
+                tiles[7] = convertTilePos({x:p.x,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, origin, 0);;
+                faces.push([3,6,7,4]);
+            }
+            //console.log(gPos)
+            if(Math.floor(hover.x) == gPos.x && Math.floor(hover.y) == gPos.y) {
+                let s = convertTilePos(p, panx, pany, canvas, tile_width, tile_height, origin, 250); 
+                let s2 = convertTilePos({x:p.x+1,y:p.y}, panx, pany, canvas, tile_width, tile_height, origin, 250);
+                let s3 = convertTilePos({x:p.x+1,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, origin, 250);
+                let s4 = convertTilePos({x:p.x,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, origin, 250);
+                tiles.push(s,s2,s3,s4);
+                faces.push([8,9,10,11],[8,9,2,1],[9,10,3,2],[10,11,4,3],[11,8,1,4]);
+            }
             for(let f = 0; f < faces.length; f++) {
                 ctx.beginPath();
                 ctx.moveTo(tiles[faces[f][0]].x, tiles[faces[f][0]].y);
@@ -158,8 +187,10 @@ function renderTerrain() {
                 let avg = (vals[faces[f][0]]+vals[faces[f][1]]+vals[faces[f][2]])/3;
                 ctx.fillStyle = `rgb(${avg},${avg},${avg})`;
                 if(Math.floor(hover.x) == gPos.x && Math.floor(hover.y) == gPos.y) {ctx.fillStyle = "rgba(146, 36, 36, 1)"}
+                if(f > (onEdge1 && onEdge2 ? 5 : (onEdge1 || onEdge2 ? 4 : 3))) {ctx.fillStyle = "rgba(146, 36, 36, 0.2)"}
                 ctx.fill();
             }
+            
             //console.log(v, v2, v3, v4, t2, t3, t4)
             // ctx.beginPath();
             // ctx.moveTo(t.x, t.y);                          // top point
