@@ -91,32 +91,33 @@ function genHeights(index, chunk, world) {
 function genCorners(world) {
     for(let c = 0; c < world.chunks.length; c++) {
         for(let t = 0; t < world.chunk_width*world.chunk_height; t++) {
-            let v2 = getNeighbor(t, 1, 0, c, world).h1;
-            let v3 = getNeighbor(t, 1, 1, c, world).h1;
-            let v4 = getNeighbor(t, 0, 1, c, world).h1;
-            let v22 = getNeighbor(t, 0, -1, c, world).v3;
-            let v42 = getNeighbor(t, -1, 0, c, world).v3;
-            
-            if(v22 === undefined) {v22 = world.chunks[c].h1[t]}
-            if(v42 === undefined) {v42 = world.chunks[c].h1[t]}
-            if(v2 === undefined) {v2 = v22}
-            if(v4 === undefined) {v4 = v42}
-            if(v3 === undefined) {v3 = (v2+v4)/2}
+            let v2 = getNeighbor(t, 1, 0, c, world);
+            let v3 = getNeighbor(t, 1, 1, c, world);
+            let v4 = getNeighbor(t, 0, 1, c, world);
+            let v22 = getGlobalIndexFromCode(getNeighbor(t, 0, -1, c, world).v3, world);
+            let v42 = getGlobalIndexFromCode(getNeighbor(t, -1, 0, c, world).v3, world);
+            console.log(v2,v3,v4,v22,v42)
+            if(v22.d === undefined) {v22 = world.chunks[c].h1[t]}
+            if(v42.d === undefined) {v42 = world.chunks[c].h1[t]}
+            if(v2 === false) {v2 = v22}
+            if(v4 === false) {v4 = v42}
 
-            world.chunks[c].v2[t] = v2;
-            world.chunks[c].v3[t] = v3;
-            world.chunks[c].v4[t] = v4;
-            world.chunks[c].v0[t] = (v2+v3+v4)/3;
+            world.chunks[c].v2[t] = getCodeFromGlobalIndex(v2.i, v2.c, world);
+            world.chunks[c].v3[t] = getCodeFromGlobalIndex(v3.i, v3.c, world);
+            world.chunks[c].v4[t] = getCodeFromGlobalIndex(v4.i, v4.c, world);
         }
     }
+    console.log(world);
 }
 
-function getChunk(start, dx, dy, world) {
-    let p = start;
-    let pn = {x: p.x + dx,y: p.y + dy};
-    if(pn.x < 0 || pn.y < 0 || pn.x >= world.width || pn.y >= world.height) {return 3}
-   
-    return world.chunks[getIndex(pn, world.width, world.height)];
+function getGlobalIndexFromCode(code, world) {
+    let i = code % (world.chunk_width*world.chunk_height);
+    let c = (code - i)/(world.chunk_width*world.chunk_height);
+    return {i: i, c: c, d: code}
+}
+
+function getCodeFromGlobalIndex(i, c, world) {
+    return (c*world.chunk_width*world.chunk_height)+i;
 }
 
 function convertTilePos(p, panx, pany, canvas, w, h, o, v = 0) {
@@ -212,5 +213,7 @@ export {
     getGlobalIndex , 
     getData ,
     getIndex ,
-    getPos
+    getPos , 
+    getGlobalIndexFromCode , 
+    getCodeFromGlobalIndex
 };

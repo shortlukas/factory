@@ -9,9 +9,10 @@ import {
     getGlobalIndex ,
     getData ,
     getIndex ,
-    getPos
+    getPos ,
+    getGlobalIndexFromCode , 
+    getCodeFromGlobalIndex
 } from "./terrain/utils.js";
-import { Tile } from "./Tile.js";
 
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -35,7 +36,7 @@ let panright = false;
 let panup = false;
 let pandown = false;
 
-let zoom = 1;
+let zoom = 5;
 
 const tile_width = 30*zoom;
 const tile_height = 15*zoom;
@@ -53,11 +54,11 @@ document.addEventListener("mousedown", () => {
     updateTile(hover.z + 30, gIndex.i, world.chunks[gIndex.c], world);
 });
 
-const chunk_width = 8;
-const chunk_height = 8;
+const chunk_width = 2;
+const chunk_height = 2;
 
-const world_width = 4;
-const world_height = 4;
+const world_width = 2;
+const world_height = 2;
 
 //Initialize chunk
 let world = {
@@ -73,10 +74,10 @@ for(let i = 0; i < world_width*world_height; i++) {
         y: (i - i % world_width) /world_height,
         h1: new Uint8Array(chunk_width * chunk_height),
         h2: new Uint8Array(chunk_width * chunk_height),
-        v0: new Uint8Array(chunk_width * chunk_height),
-        v2: new Uint8Array(chunk_width * chunk_height),
-        v3: new Uint8Array(chunk_width * chunk_height),
-        v4: new Uint8Array(chunk_width * chunk_height)
+        v0: new Uint16Array(chunk_width * chunk_height),
+        v2: new Uint16Array(chunk_width * chunk_height),
+        v3: new Uint16Array(chunk_width * chunk_height),
+        v4: new Uint16Array(chunk_width * chunk_height)
     }
     world.chunks.push(chunk);
     genHeights(i, chunk, world);
@@ -118,10 +119,7 @@ function update() {
     if(pandown) {pany += 1}
     // for(let c = 0; c < world.length; c++) {
     //     for(let t = 0; t < chunk_width*chunk_height; t++) {
-    //         let p = getPos(t, chunk_width, chunk_height);
-    //         let w = getPos(c, world_width, world_height);
-    //         p.x += w.x*chunk_width;
-    //         p.y += w.y*chunk_height;
+    //         let p = getGlobalPos(c, i, world);
     //         let dx = p.x - hover.x;
     //         let dy = p.y - hover.y;
     //         let dz = 0;
@@ -146,14 +144,22 @@ function renderTerrain() {
             const p = getPos(i, world.chunk_width, world.chunk_height);
             
             const data = getData(i, c, world);
+            let v2 = getGlobalIndexFromCode(data.v2, world);
+            let v3 = getGlobalIndexFromCode(data.v3, world);
+            let v4 = getGlobalIndexFromCode(data.v4, world);
+            //console.log(v2, v3, v4);
+            v2 = world.chunks[v2.c].h1[v2.i];
+            v3 = world.chunks[v3.c].h1[v3.i];
+            v4 = world.chunks[v4.c].h1[v4.i];
+            let v0 = (data.h1+v2+v3+v4)/3;
             const t = convertTilePos(p, panx, pany, canvas, tile_width, tile_height, origin, data.h1);
-            const t2 = convertTilePos({x:p.x+1,y:p.y}, panx, pany, canvas, tile_width, tile_height, origin, data.v2);
-            const t3 = convertTilePos({x:p.x+1,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, origin, data.v3);
-            const t4 = convertTilePos({x:p.x,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, origin, data.v4);
-            const t0 = convertTilePos({x:p.x+0.5,y:p.y+0.5}, panx, pany, canvas, tile_width, tile_height, origin, data.v0);
+            const t2 = convertTilePos({x:p.x+1,y:p.y}, panx, pany, canvas, tile_width, tile_height, origin, v2);
+            const t3 = convertTilePos({x:p.x+1,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, origin, v3);
+            const t4 = convertTilePos({x:p.x,y:p.y+1}, panx, pany, canvas, tile_width, tile_height, origin, v4);
+            const t0 = convertTilePos({x:p.x+0.5,y:p.y+0.5}, panx, pany, canvas, tile_width, tile_height, origin, v0);
             
             let tiles = [t0,t,t2,t3,t4,0,0,0];
-            let vals = [data.v0,data.h1,data.v2,data.v3,data.v4,0,0,0,250,250,250,250];
+            let vals = [v0,data.h1,v2,v3,v4,0,0,0,250,250,250,250];
             let faces = [[1,0,2],[2,0,3],[3,0,4],[4,0,1]];
             const onEdge1 = world.chunks[c].x*world.chunk_width + p.x >= world.width*world.chunk_width-1;
             const onEdge2 = world.chunks[c].y*world.chunk_height + p.y >= world.height*world.chunk_height-1;
