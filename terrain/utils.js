@@ -31,17 +31,22 @@ function genTerrain(start, chunk, chunk_width, chunk_height) {
 
 //Returns the value at the tile, not the index in order for cross chunk neighbors
 function getNeighbor(start, dx, dy, chunk, world) {
+    console.log(start, chunk);
+    const this_chunk = world.chunks[chunk];
+    console.log(this_chunk);
     const p = getPos(start, world.chunk_width);  
     const pn = {x: p.x+dx, y: p.y+dy}; //Position of the neighbor  
     const c = getPos(chunk, world.width) //Position of this chunk
     let nx = 0;
     let ny = 0;
-    if(pn.x < 0 && c.x > 0) {pn.x = world.chunk_width-1; nx = -1} else if(pn.x < 0) {return false}
-    if(pn.y < 0 && c.y > 0) {pn.y = world.chunk_height-1; ny = -1} else if(pn.y < 0) {return false}
-    if(pn.x >= world.chunk_width && c.x < world.width-1) {pn.x = 0; nx = 1} else if(pn.x >= world.chunk_width) {return false}
-    if(pn.y >= world.chunk_height && c.y < world.height-1) {pn.y = 0; ny = 1} else if(pn.y >= world.chunk_height) {return false}
-    let indexn = getIndex(pn, world.chunk_width, world.chunk_height);
+    if(pn.x < 0 && c.x > 0) {pn.x = this_chunk.width-1; nx = -1} else if(pn.x < 0) {return false}
+    if(pn.y < 0 && c.y > 0) {pn.y = this_chunk.height-1; ny = -1} else if(pn.y < 0) {return false}
+    if(pn.x >= this_chunk.width && c.x < world.width-1) {pn.x = 0; nx = 1} else if(pn.x >= this_chunk.width) {return false}
+    if(pn.y >= this_chunk.height && c.y < world.height-1) {pn.y = 0; ny = 1} else if(pn.y >= this_chunk.height) {return false}
     let chunkn = getIndex({x:c.x+nx,y:c.y+ny},world.width,world.height);
+    const thisChunk = world.chunks[chunkn];
+    let indexn = getIndex(pn, thisChunk.width, thisChunk.height);
+    
     return getData(indexn, chunkn, world);
 }
 
@@ -94,20 +99,16 @@ function genCorners(world) {
             let v2 = getNeighbor(t, 1, 0, c, world);
             let v3 = getNeighbor(t, 1, 1, c, world);
             let v4 = getNeighbor(t, 0, 1, c, world);
-            let v22 = getGlobalIndexFromCode(getNeighbor(t, 0, -1, c, world).v3, world);
-            let v42 = getGlobalIndexFromCode(getNeighbor(t, -1, 0, c, world).v3, world);
-            console.log(v2,v3,v4,v22,v42)
-            if(v22.d === undefined) {v22 = world.chunks[c].h1[t]}
-            if(v42.d === undefined) {v42 = world.chunks[c].h1[t]}
-            if(v2 === false) {v2 = v22}
-            if(v4 === false) {v4 = v42}
-
+            //console.log(c, t, v2,v3,v4)
+            if(v2 === false) {v2 = 0}
+            if(v3 === false) {v3 = 0}
+            if(v4 === false) {v4 = 0}
             world.chunks[c].v2[t] = getCodeFromGlobalIndex(v2.i, v2.c, world);
             world.chunks[c].v3[t] = getCodeFromGlobalIndex(v3.i, v3.c, world);
             world.chunks[c].v4[t] = getCodeFromGlobalIndex(v4.i, v4.c, world);
         }
     }
-    console.log(world);
+    //console.log(world);
 }
 
 function getGlobalIndexFromCode(code, world) {

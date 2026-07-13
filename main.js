@@ -69,15 +69,21 @@ let world = {
     chunk_height: chunk_height
 };
 for(let i = 0; i < world_width*world_height; i++) {
+    let w = chunk_width;
+    let h = chunk_height;
+    if(i % world_width-1 == 0) {w += 1}
+    if(i > (world_height-1)*2) {h += 1}
     let chunk = {
+        width: w,
+        height: h,
         x: i % world_width,
         y: (i - i % world_width) /world_height,
-        h1: new Uint8Array(chunk_width * chunk_height),
-        h2: new Uint8Array(chunk_width * chunk_height),
-        v0: new Uint16Array(chunk_width * chunk_height),
-        v2: new Uint16Array(chunk_width * chunk_height),
-        v3: new Uint16Array(chunk_width * chunk_height),
-        v4: new Uint16Array(chunk_width * chunk_height)
+        h1: new Uint8Array(w*h),
+        h2: new Uint8Array(w*h),
+        v0: new Uint16Array(w*h),
+        v2: new Uint16Array(w*h),
+        v3: new Uint16Array(w*h),
+        v4: new Uint16Array(w*h)
     }
     world.chunks.push(chunk);
     genHeights(i, chunk, world);
@@ -147,7 +153,7 @@ function renderTerrain() {
             let v2 = getGlobalIndexFromCode(data.v2, world);
             let v3 = getGlobalIndexFromCode(data.v3, world);
             let v4 = getGlobalIndexFromCode(data.v4, world);
-            //console.log(v2, v3, v4);
+            console.log(c, i, p, v2, v3, v4);
             v2 = world.chunks[v2.c].h1[v2.i];
             v3 = world.chunks[v3.c].h1[v3.i];
             v4 = world.chunks[v4.c].h1[v4.i];
