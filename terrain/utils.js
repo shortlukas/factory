@@ -58,7 +58,7 @@ function getData(index, chunk, world) {
         c: chunk,
         h1: src.h1[index], 
         h2: src.h2[index],
-        v0: src.v0[index],
+        v1: src.v1[index],
         v2: src.v2[index],
         v3: src.v3[index],
         v4: src.v4[index],
@@ -86,39 +86,45 @@ function genHeights(index, chunk, world) {
         const p2 = getNeighbor(i, 0, -1, index, world);  //Neighbor to the top
         let parent = (p1!== false && p2!== false ? (p1.h1+p2.h1)/2 : (p1==false&&p2!==false? p2.h1 : (p2==false&&p1!==false ? p1.h1 : start)));
         let dif = 30;
-        let r = parent - (Math.random() * dif) + (dif/2);
-        if(r <= 0) {r = 1}
-        if(r >= 200) {r = 200;}
-        chunk.h1[i] = r;
+        let r = vary(parent, dif);
+        chunk.h1[i] = clamp(r, 1, 200);
     }
+}
+
+function vary(parent, dif) {
+    return parent - (Math.random() * dif) + (dif/2);
+}
+
+function clamp(a, min, max) {
+    let b = a;
+    if(a < min) {b = min}
+    if(a > max) {b = max}
+    return b;
 }
 
 function genCorners(world) {
     for(let c = 0; c < world.chunks.length; c++) {
         for(let t = 0; t < world.chunk_width*world.chunk_height; t++) {
-            let v2 = getNeighbor(t, 1, 0, c, world);
-            let v3 = getNeighbor(t, 1, 1, c, world);
-            let v4 = getNeighbor(t, 0, 1, c, world);
-            //console.log(c, t, v2,v3,v4)
-            if(v2 === false) {v2 = 0}
-            if(v3 === false) {v3 = 0}
-            if(v4 === false) {v4 = 0}
-            world.chunks[c].v2[t] = getCodeFromGlobalIndex(v2.i, v2.c, world);
-            world.chunks[c].v3[t] = getCodeFromGlobalIndex(v3.i, v3.c, world);
-            world.chunks[c].v4[t] = getCodeFromGlobalIndex(v4.i, v4.c, world);
+            const n = world.chunks[c].h1[t];
+            let n1 = getNeighbor(t, -1, -1, c, world).h1;
+            let n2 = getNeighbor(t, 0, -1, c, world).h1;
+            let n3 = getNeighbor(t, 1, -1, c, world).h1;
+            let n4 = getNeighbor(t, -1, 0, c, world).h1;
+            let n5 = getNeighbor(t, 1, 0, c, world).h1;
+            let n6 = getNeighbor(t, -1, 1, c, world).h1;
+            let n7 = getNeighbor(t, 0, 1, c, world).h1;
+            let n8 = getNeighbor(t, 1, 1, c, world).h1;
+            let values = [];
+            let corners = [[n1,n2,n,n4],[n2,n3,n5,n],[n4,n,n7,n6],[n,n5,n8,n7]];
+            corners.map(set => set.filter(point => point !== undefined));
+            for(let set of corners) {values.push(set.reduce((a, b) => a + b, 0)/set.length)}
+            world.chunks[c].v1[t] = clamp(values[0], 1, 200);
+            world.chunks[c].v2[t] = clamp(values[1], 1, 200);
+            world.chunks[c].v3[t] = clamp(values[2], 1, 200);
+            world.chunks[c].v4[t] = clamp(values[3], 1, 200);
         }
     }
     //console.log(world);
-}
-
-function getGlobalIndexFromCode(code, world) {
-    let i = code % (world.chunk_width*world.chunk_height);
-    let c = (code - i)/(world.chunk_width*world.chunk_height);
-    return {i: i, c: c, d: code}
-}
-
-function getCodeFromGlobalIndex(i, c, world) {
-    return (c*world.chunk_width*world.chunk_height)+i;
 }
 
 function convertTilePos(p, panx, pany, canvas, w, h, o, v = 0) {
@@ -214,7 +220,5 @@ export {
     getGlobalIndex , 
     getData ,
     getIndex ,
-    getPos , 
-    getGlobalIndexFromCode , 
-    getCodeFromGlobalIndex
+    getPos 
 };
